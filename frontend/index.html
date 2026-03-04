@@ -1,0 +1,135 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>ALI – Sprint 1 Prototype</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
+    header { background: #1f6feb; color: #fff; padding: 1rem; }
+    main { padding: 1rem; max-width: 900px; margin: auto; }
+    .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    label { display:block; margin:.5rem 0 .25rem; }
+    input, select { width: 100%; padding: .5rem; }
+    button { background:#1f6feb; color:#fff; border:none; padding:.6rem 1rem; border-radius:6px; cursor:pointer; }
+    .row { display:flex; gap:1rem; }
+    .row > div { flex:1; }
+    .muted { color:#6b7280; font-size:.9rem; }
+    .result { display:flex; justify-content:space-between; align-items:center; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>ALI – Amazing Lunch Indicator (Sprint 1)</h1>
+</header>
+<main>
+  <section class="card">
+    <h2>Search</h2>
+    <div class="row">
+      <div>
+        <label for="q">Free text</label>
+        <input id="q" placeholder="Search name, description, address, type"/>
+      </div>
+      <div>
+        <label for="type">Restaurant type</label>
+        <select id="type"></select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label for="price_min">Min price</label>
+        <input id="price_min" type="number" min="0"/>
+      </div>
+      <div>
+        <label for="price_max">Max price</label>
+        <input id="price_max" type="number" min="0"/>
+      </div>
+      <div>
+        <label for="sort">Sort</label>
+        <select id="sort">
+          <option value="price">Price</option>
+          <option value="name">Name</option>
+        </select>
+      </div>
+      <div>
+        <label for="order">Order</label>
+        <select id="order">
+          <option value="asc">Ascending</option>
+          <option value="desc">Descending</option>
+        </select>
+      </div>
+    </div>
+    <p class="muted">Shows up to 100 results. Click a restaurant to view details.</p>
+    <button id="btnSearch">Search</button>
+  </section>
+
+  <section class="card">
+    <h2>Results</h2>
+    <div id="results"></div>
+  </section>
+
+  <section class="card" id="detailsCard" style="display:none">
+    <h2>Details</h2>
+    <pre id="details"></pre>
+  </section>
+</main>
+<script>
+const api = (path) => `/api${path}`;
+
+async function loadTypes() {
+  const sel = document.getElementById('type');
+  sel.innerHTML = '<option value="">Any</option>';
+  const res = await fetch(api('/restaurant-types'));
+  const types = await res.json();
+  for (const t of types) {
+    const opt = document.createElement('option');
+    opt.value = t.id; opt.textContent = t.name; sel.appendChild(opt);
+  }
+}
+
+function qs(sel){ return document.getElementById(sel).value.trim(); }
+
+async function search() {
+  const params = new URLSearchParams();
+  if (qs('q')) params.set('q', qs('q'));
+  if (qs('type')) params.set('type_id', qs('type'));
+  if (qs('price_min')) params.set('price_min', qs('price_min'));
+  if (qs('price_max')) params.set('price_max', qs('price_max'));
+  params.set('sort', document.getElementById('sort').value);
+  params.set('order', document.getElementById('order').value);
+
+  const url = api('/restaurants/search') + '?' + params.toString();
+  const res = await fetch(url);
+  const data = await res.json();
+  const container = document.getElementById('results');
+  container.innerHTML = '';
+  if (data.total === 0) {
+    container.textContent = 'No match found. Try different criteria.';
+    return;
+  }
+  for (const item of data.items) {
+    const div = document.createElement('div');
+    div.className = 'result';
+    div.innerHTML = `<div><strong>${item.name}</strong><div class="muted">Type: ${item.type_name}</div></div><div>Avg price: €${item.average_price}</div>`;
+    div.style.padding = '.6rem 0';
+    div.style.borderBottom = '1px solid #eee';
+    div.addEventListener('click', () => showDetails(item.id));
+    container.appendChild(div);
+  }
+}
+
+async function showDetails(id) {
+  const res = await fetch(api(`/restaurants/${id}`));
+  const r = await res.json();
+  const pre = document.getElementById('details');
+  pre.textContent = JSON.stringify(r, null, 2);
+  document.getElementById('detailsCard').style.display = 'block';
+}
+
+// Wire up
+document.getElementById('btnSearch').addEventListener('click', search);
+loadTypes();
+</script>
+</body>
+</html>
